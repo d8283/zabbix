@@ -2,7 +2,7 @@
 
 # ------------------------------------------
 #
-#       https://github.com/Statemood/monitor
+#       https://github.com/d8283/monitor
 # ------------------------------------------
 
 raid_info=/dev/shm/raid.info

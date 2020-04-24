@@ -2,10 +2,10 @@
 
 # --------------------------------------------------
 # Project monitor
-#       https://github.com/Statemood/monitor
+#       https://github.com/d8283/monitor
 #
 # A part of the project AMC
-#       https://github.com/Statemood/amc
+#       https://github.com/d8283/amc
 # --------------------------------------------------
 
 tmp="/dev/shm"

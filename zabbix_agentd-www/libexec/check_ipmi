@@ -1,12 +1,12 @@
 #! /bin/bash
 
 # ------------------------------------------
-# Created by Statemood, 2014.07.03 15:30
-# Updated by Statemood, 2014.07.04 12:00
-#            Statemood@gmail.com
+# Created by d8283, 2014.07.03 15:30
+# Updated by d8283, 2014.07.04 12:00
+#            d8283@gmail.com
 #
 # Project nagios-plugins:
-#       https://github.com/Statemood
+#       https://github.com/d8283
 # ------------------------------------------
 
       key="`echo $1 | tr '_' ' '`"
