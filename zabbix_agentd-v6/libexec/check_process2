@@ -1,0 +1,68 @@
+#! /bin/sh
+
+# --------------------------------------------------
+#       https://github.com/Statemood/monitor
+#
+# --------------------------------------------------
+
+#
+
+Usage(){
+    mesg="
+    \033[1m$(basename $0)\033[0m
+
+        -n, --name      Process name
+        -i, --item
+              count     Count the number of named process
+              cpu       Count the used CPU(%) of named process
+              memory    Count the used Memory(%) of named process
+"
+    echo "$mesg"
+}
+
+Proc(){
+    ps aux | grep "[$name_head]$name_tail" | grep -v "$(basename $0)"
+}
+
+for arg in "$@"
+do
+    case "$arg" in
+        -n|--name)
+            name_full="$2"
+            name_head="`echo $name_full | cut -c 1`"
+            name_tail="`echo $name_full | cut -c 2-`"
+
+            shift 2
+            ;;
+
+        -i|--item)
+            item="$2"
+	    case $item in
+		count)
+		    number=`Proc | wc -l | awk '{print $1}'`
+		    echo $number
+		    if [ $number -ge 800 ] && [ "$name_full" = "httpd" ] 
+		    then
+			logfile=/tmp/httpd.proc.info.`date +'%F-%H-%M-%S'`
+			echo -e "`date +'%F %T.%N'` count: $number\n\n"	>  $logfile
+			echo -e "---------------------------------\n\n" >> $logfile
+			sudo netstat -aonp | grep 'ESTABLISHED' 	>> $logfile
+			sudo killall -9 httpd			> /dev/null 2>&1
+			sleep 1
+			sudo /usr/local/server/apache/bin/httpd	> /dev/null 2>&1
+		    fi	
+		    ;;
+		cpu)
+            	    Proc | awk '{sum += $3} END {print sum}'
+		    ;;
+                memory) 
+		    Proc | awk '{sum += $4} END {print sum}'
+		    ;;
+	    esac
+            ;;
+        -h|--help)
+            Usage
+            ;;
+    esac
+done
+

@@ -1,0 +1,47 @@
+#! /bin/bash
+
+# ------------------------------------------
+#
+#       https://github.com/Statemood/monitor
+# ------------------------------------------
+
+# 脚本输出0为成功，其它为失败
+mobile='17301671772'
+login_url="https://my.daoxila.com/my/api/login?account=$mobile&verifyCode=6769"
+curl_opts="-sL --max-time 4"
+
+curl_cookie="`mktemp /dev/shm/XXXXXXXX`"
+
+Login(){
+    # 需要填入验证码才能登录
+    ((echo 'set c158e260940560b642cbb9817b8cdbdb 10 60 4' && echo '6769' && sleep 1) | telnet 192.168.10.240 11211) > /dev/null 2>&1
+
+    return=`curl $curl_opts $login_url -c $curl_cookie`
+    if grep -Pq '"code"\s*:\s*\d' <<< "$return"
+    then
+        return 0
+    else
+        return 1
+    fi
+}
+
+CreateOrder(){
+    url="https://n.daoxila.com/order?act=createorder&order_from=dxl_test_lizi&service_type=1&city=7&mobile=$mobile&type=1"
+    return=`curl $curl_opts "$url" -b $curl_cookie`
+    
+    test -f "$curl_cookie" && rm -f "$curl_cookie"
+
+    grep -Pq '"code"\s*:\s*\d' <<< $return && return 0 || return 1
+}
+
+Login
+
+test $? != 0 && echo 1
+
+if [ "$1" = "order" ] then
+    CreateOrder
+
+    test $? != 0 && echo 1 
+
+    test -f "$curl_cookie" && rm -f "$curl_cookie"
+fi

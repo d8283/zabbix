@@ -1,0 +1,12 @@
+#!/usr/bin/env python
+import os
+import json
+
+t=os.popen("""sudo /bin/netstat -natp|awk -F: '/redis/&&/LISTEN/{print $2}'|awk '{print $1}' | sed '/^$/d'""")
+
+ports = []
+for port in  t.readlines():
+        r = os.path.basename(port.strip())
+        ports += [{'{#REDISPORT}':r}]
+print json.dumps({'data':ports},sort_keys=True,indent=4,separators=(',',':'))
+

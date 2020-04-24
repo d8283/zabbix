@@ -1,0 +1,80 @@
+#! /bin/bash
+
+# --------------------------------------------------
+# Project monitor:
+#       https://github.com/Statemood/monitor
+#
+# --------------------------------------------------
+
+#   var.
+#   sys.
+#  stat.
+# slave.
+# check_mysql -h host --port port -u user -p password -i item
+
+port=3306
+user="zabbix"
+exec="/usr/local/server/mysql/bin/mysql"
+
+cmd(){
+    opts="-s --connect-timeout 5 -h $host -u $user --port $port -p$password "
+
+    $exec $opts -e "$sql" 2> /dev/null
+}
+
+result(){
+    cmd | tail -1 | awk '{print $2}'
+}
+
+display(){
+    test -z "$res" && echo 1 || echo $res
+    exit 0
+}
+
+for arg in "$@"
+do
+    case $arg in
+        -h|--host)
+            host="$2"
+            shift 2
+            ;;
+        --port)
+            port=$2
+            shift 2
+            ;;
+        -u|--user)
+            user="$2"
+            shift 2
+            ;;
+        -p|--password)
+            password="$2"
+            shift 2
+            ;;
+        -i|--item)
+           items="`echo $2 | awk -F '.' '{print $1}'`"
+            item="`echo $2 | awk -F '.' '{print $2}'`"
+
+            case $items in
+                var)    sql="show variables like '$item'"   ;;
+                stat)   sql="show status like '$item'"      ;;
+                sys)
+                    if [ "$item" = "processlist" ]
+                    then
+                        sql="show $item"
+                        res="`cmd | wc -l`"
+                        display
+                    fi
+                    ;;
+                slave)
+                    sql="show slave status\G"
+                    res="`cmd | grep -i $item | head -1 | awk '{print $2}' | tr -s 'Yes' 0 | tr -s 'No' 1`"
+                    display
+                    ;;
+            esac
+
+            res="`result`"
+            display
+            ;;
+    esac
+done
+

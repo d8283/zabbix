@@ -1,0 +1,14 @@
+#! /bin/bash
+
+host="localhost"
+user="zabbix"
+password="adjfnqf23eSD"
+
+time_00=`date -d 00:00:00 +%s`
+
+sql="select count(*) from api.ex_sms_quene where create_time > $time_00;"
+
+count=`mysql -u $user -p$password -h $host -e "$sql" 2> /dev/null | tail -1`
+
+test -z "$count" && count=0
+echo $count

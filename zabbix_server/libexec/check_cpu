@@ -1,0 +1,32 @@
+#! /bin/bash
+
+# ------------------------------------------
+#
+#       https://github.com/Statemood/monitor
+# ------------------------------------------
+
+argv="$1"
+
+temp_data(){
+    sensors | grep "^Physical id $cpu:" | awk -F '+' '{print $2}' | awk -F '.' '{print $1}'
+}
+
+case "$argv" in
+    temp*)
+        #temp0, temp1
+        cpu="`echo $argv | cut -c 5`"
+        temp_data
+        ;;
+    cores)
+        # Count CPU Cores
+        grep '^processor' /proc/cpuinfo | wc -l
+        ;;
+    count)
+        number=`grep 'physical id' /proc/cpuinfo | sort | uniq | wc -l`
+        test $number = 0 && number=1
+        echo $number
+        ;;
+    frequency)
+        grep 'cpu MHz' /proc/cpuinfo | head -1 | awk '{print $4}'
+        ;;
+esac

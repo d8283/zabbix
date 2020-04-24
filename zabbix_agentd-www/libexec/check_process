@@ -1,0 +1,88 @@
+#! /bin/sh
+
+# --------------------------------------------------
+#       https://github.com/Statemood/monitor
+#
+# --------------------------------------------------
+
+#
+
+Usage(){
+    mesg="
+    \033[1m$(basename $0)\033[0m
+
+        -n, --name      Process name
+        -i, --item
+              count     Count the number of named process
+              cpu       Count the used CPU(%) of named process
+              memory    Count the used Memory(%) of named process
+"
+    echo "$mesg"
+}
+
+Proc(){
+    ps aux | grep "[$name_head]$name_tail" | grep -v "$(basename $0)"
+}
+
+for arg in "$@"
+do
+    case "$arg" in
+        -n|--name)
+            name_full="$2"
+            name_head="`echo $name_full | cut -c 1`"
+            name_tail="`echo $name_full | cut -c 2-`"
+
+            shift 2
+            ;;
+
+        -i|--item)
+            item="$2"
+            case $item in
+                count)
+                     z_log="/tmp/zabbix"
+                    number=`Proc | wc -l | awk '{print $1}'`
+                    netsta=`netstat -aon | grep 'ESTABLISHED' | wc -l`
+                      load=`w | head -1 | awk -F 'average: ' '{print $2}' | awk -F ',' '{print $1}'`
+                        
+                        # 如果最近1分钟 loadavg 大于等于 40 则 lv = 1
+                        lv=`echo "$load >= 40" | bc`
+
+                    echo $number
+
+                    ################################################
+                    # 如果 
+                    #       httpd 进程大于等于800
+                    # 或
+                    #       ESTABLISHED 状态连接 大于等于 2000
+                    # 或
+                    #       最近1分钟 loadavg 大于等于 40
+                    # 则
+                    #       重启 httpd
+                    ################################################
+                    test -d $z_log || mkdir $z_log
+                    echo "`date +'%F %T.%N'` count: $number, ESTABLISHED: $netsta, loadavg: $load, lv: $lv" >> $z_log/process-count-`date +%F`.log 
+
+                    if [ $number -ge 800 ] || [ $netsta -ge 2000 ] || [ $lv = 1 ]
+                    then
+                        logfile="$z_log/httpd.proc.info.`date +'%F-%H-%M-%S'`"
+                        echo -e "`date +'%F %T.%N'` count: $number\n\n" >  $logfile
+                        echo -e "---------------------------------\n\n" >> $logfile
+                        free -m                                         >> $logfile 
+                        echo -e "---------------------------------\n\n" >> $logfile
+                        netstat -aon | grep 'ESTABLISHED'               >> $logfile
+                        echo -e "---------------------------------\n\n" >> $logfile
+                        ps aux | grep '[h]ttpd'                         >> $logfile 
+                        sudo killall -9 httpd                           > /dev/null 2>&1
+                        sleep 1
+                        sudo /usr/local/server/apache/bin/httpd         > /dev/null 2>&1
+                    fi  
+                    ;;
+                cpu)    Proc | awk '{sum += $3} END {print sum}'    ;;
+                memory) Proc | awk '{sum += $4} END {print sum}'    ;;
+            esac
+            ;;
+        -h|--help)
+            Usage
+            ;;
+    esac
+done

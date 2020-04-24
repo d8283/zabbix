@@ -1,0 +1,122 @@
+#! /bin/bash
+
+# --------------------------------------------------
+# Project monitor
+#       https://github.com/Statemood/monitor
+#
+# A part of the project AMC
+#       https://github.com/Statemood/amc
+# --------------------------------------------------
+
+tmp="/dev/shm"
+sms_api="http://service.daoxila.com/sms/put_quene2.php"
+sms_key="7f92294a25e4f3de065f2b325a113acb"
+
+contact="`mktemp $tmp/XXXXXXXXXXXX`"
+
+echo "notice_alert_get_info was called at `date`" >> /tmp/notice_alert_sender.log
+
+if [ "$#" != 6 ]
+then
+    echo "Required argument"
+    exit 1
+fi
+
+for arg in "$@"
+do
+    case "$arg" in
+        -i|--id)
+            alert_id="$2"
+            shift 2
+            ;;
+        -s|--subject)
+            subject="`echo $2 | awk -F ', Alert' '{print $1}'`"
+            shift 2
+            ;;
+        -c|--content)
+            content="$2"
+            shift 2
+            ;;
+    esac
+done
+
+send_sms(){
+    sms_content=${subject}$'\n\n'${content}
+
+    # 先发微信
+    send_weixin
+
+    # 不成功再发短信
+    if [ $? -ne 0 ]
+    then
+        echo "curl -s -X POST $sms_api -d mobile=$mobile&content=$sms_content&key=$sms_key" >> /tmp/notice_alert_sender.log
+        curl -s -X POST $sms_api -d "mobile=$mobile&content=$sms_content&key=$sms_key"
+    fi
+}
+
+send_weixin() {
+    token=`redis-cli -h 192.168.10.97 get weixin_alert_access_token`
+    if [ ${#token} -lt 100 ]
+    then
+        # 获取access_token
+        gettoken=`curl -s --max-time 5 "https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=wxb24938c7fdea1e9f&corpsecret=ljK1fba-_GQnW2o2Dru_-DBMKhponkuLSSevLPr5FTY"`
+        if ! grep -q 'access_token' <<< $gettoken
+        then
+            # 获取access_token失败
+            return 1
+        fi
+
+        token=`grep access_token <<< $gettoken | grep -Po '(?<="access_token":")[^"]+'`
+        settoken=`redis-cli -h 192.168.10.97 set weixin_alert_access_token $token 7000`     # 微信设置7200s过期
+    fi
+
+    # 微信要求换行符转义
+    wx_content=`sed ':a;N;$!ba;s/\n/\\\n/g' <<< "$sms_content"`
+    msg=$(cat <<-EOF
+        {"touser":"$mobile","msgtype":"text","agentid":1000002,"text":{"content":"$wx_content"}}
+	EOF
+    )
+
+    # 发送信息
+    echo $msg >> /tmp/notice_alert_sender.log
+    send=`curl -s --max-time 5 "https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token=$token" -d "$msg"`
+
+    if grep -Pq '"invaliduser"\s*:\s*"\w+"' <<< $send
+    then
+        return 1
+    fi
+
+    return 0
+}
+
+logfile="/tmp/monitors/$alert_id.log"
+send_mail(){
+
+    mail_content="$content"
+    if [ -f $logfile ]
+    then
+        detail=$(cat $logfile)
+        mail_content=${content}$'\n\n\n\n\n故障详情：\n'${detail}
+    fi
+
+    $(dirname $0)/mail.py "$mail" "$subject" "$mail_content"
+}
+
+$(dirname $0)/notice_alert_get_info $alert_id > $contact
+
+test -s $contact || exit 0
+
+
+while read notice name mail mobile
+do
+    echo "notice channel is [$notice]" >> /tmp/notice_alert_sender.log
+
+    case $notice in
+        0)  send_mail               ;;
+        1)  send_sms; send_mail     ;;
+        2)  send_sms; send_mail     ;;
+    esac
+done < $contact
+echo -e "\n\n" >> /tmp/notice_alert_sender.log
+
+test -f $contact && rm -f $contact

@@ -1,0 +1,42 @@
+#! /usr/bin/env python2
+# encoding=utf8
+
+# --------------------------------------------------
+#       https://github.com/Statemood/monitor
+#
+# Project AMC
+#       https://github.com/Statemood/amc
+# --------------------------------------------------
+
+# Data from AMC, monitors
+
+import os
+import time
+import datetime
+import pymongo
+
+db_host = "192.168.18.19"
+db_port = 32350
+
+dc_list = os.path.dirname(os.path.abspath(__file__)) + '/../etc/http-discovery.list'
+f       = open(dc_list, 'w')
+conn    = pymongo.MongoClient(db_host, db_port)
+db      = conn.amc
+results = db.monitors.find({}, {"_id": 0})
+
+c_time  = time.time()
+
+conn.close()
+
+f.write("# Created by " + __file__ + " "
+        + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(c_time)) + "\n\n" )
+
+for i in results:
+    # 以下这些只是为了发报警时找到对应的人，并不需要添加监控
+    if i['id'] in ['5a0ac4fe-9d00-5f94-8df2-1e83c8f74ce5', '8b595ce7-e811-5dcc-80d7-741042a2ec8c']:
+        continue
+
+    d = "%(name)s:%(active)s:%(host)s:%(port)s:%(http_code)s:%(max_time)s:%(url)s:%(id)s:%(keywords)s\n" %i
+    f.write(d.encode('utf-8'))
+f.close()
+

@@ -1,0 +1,16 @@
+#! /bin/bash
+
+# ------------------------------------------
+# Created by Statemood, 2014.07.03 15:30
+# Updated by Statemood, 2014.07.04 12:00
+#            Statemood@gmail.com
+#
+# Project nagios-plugins:
+#       https://github.com/Statemood
+# ------------------------------------------
+
+      key="`echo $1 | tr '_' ' '`"
+ipmi_info="/dev/shm/ipmi.info"
+
+grep "^$key" $ipmi_info | awk -F '|' '{print $2}' | awk '{print $1}'
+

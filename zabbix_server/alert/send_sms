@@ -1,0 +1,9 @@
+#! /bin/bash
+
+sms_api="http://service.daoxila.com/sms/put_quene2.php"
+sms_key="7f92294a25e4f3de065f2b325a113acb"
+
+ mobile="$1" 
+content="$2"
+
+curl -X POST $sms_api -d "mobile=$mobile&content=\"$content\"&key=$sms_key"

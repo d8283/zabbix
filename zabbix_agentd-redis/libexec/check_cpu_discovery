@@ -1,0 +1,14 @@
+#!/usr/bin/env python
+#coding=utf-8
+
+import os
+import json
+
+t     = os.popen("grep '^physical id' /proc/cpuinfo | sort | uniq | awk -F ': ' '{print $2}'")
+
+cpus = []
+for cpu in  t.readlines():
+        r = os.path.basename(cpu.strip())
+        cpus += [{'{#CPUID}':r}]
+print json.dumps({'data':cpus},sort_keys=True,indent=4,separators=(',',':'))
+

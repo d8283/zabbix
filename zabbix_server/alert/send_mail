@@ -1,0 +1,46 @@
+#! /bin/bash
+
+# logger
+echo -e "`date`\nsend_mail: $2\n" >> /tmp/aa.log
+
+
+### Windows Server: send to IT
+echo "$2" | grep -q '\-WIN-'
+if [ $? = 0 ]
+then
+    /usr/local/server/zabbix/alert/mail.py "dxl_it@daoxila.com" "$2" "$3"
+    exit 0
+fi
+
+
+### Node-DB, send to hujie
+echo "$2" | grep -q "Node-DB-Sync"
+if [ $? = 0 ]
+then
+    /usr/local/server/zabbix/alert/mail.py "hujie@daoxila.com" "$2" "$3"
+    exit 0
+fi
+
+## SMS Sent Count
+echo "$2" | grep -q 'Too many sms sent'
+
+if [ $? = 0 ]
+then
+      longzhan=15021222452
+    yanchenhua=18602100802
+    
+    for m in $longzhan $yanchenhua
+    do
+        $(dirname $0)/send_sms $m "$2"
+    done
+fi
+
+echo "$2" | grep -q "Alert"
+if [ $? = 0 ]
+then
+    id="`echo $2 | awk -F 'Alert: ' '{print $2}'`"
+
+    $(dirname $0)/notice_alert_sender -i "$id" -s "$2" -c "$3"
+else
+    /usr/local/server/zabbix/alert/mail.py "$1" "$2" "$3"
+fi

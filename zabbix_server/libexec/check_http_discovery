@@ -1,0 +1,77 @@
+#! /bin/bash
+
+# --------------------------------------------------
+# Project monitor:
+#       https://github.com/Statemood/monitor
+#
+#
+# --------------------------------------------------
+
+   tag=1
+ count=1
+number=1
+  temp=`mktemp /dev/shm/XXXXXX`
+config="$(dirname $(dirname $0))/etc/http-discovery.list"
+default_time=2
+
+# Generate http discovery list ($config)
+$(dirname $0)/generate_http_discovery_list
+
+if [ ! -f "$config" ]
+then
+    echo "Error: config file not found"
+    exit 1
+fi
+
+PrintDiscoveryList(){
+    items_0="{\"{#HTTP.SERVICE}\": \"$service\", "
+    items_1="\"{#HTTP.HOST}\": \"$host\", \"{#HTTP.ACTION}\": $action, "
+    items_2="\"{#HTTP.PORT}\": $port, \"{#HTTP.CODE}\": $code, \"{#HTTP.URI}\": \"$uri\", "
+    items_3="\"{#HTTP.TIME}\": $time, \"{#HTTP.ID}\": \"$id\", \"{#HTTP.KEYWORDS}\": \"$keywords\"}"
+
+    echo "$items_0$items_1$items_2$items_3"    >> $temp
+}
+
+grep -v "^#" $config | sed '/^$/d' |\
+while read line
+do
+    service="`echo $line | awk -F ':' '{print $1}'`"
+     action="`echo $line | awk -F ':' '{print $2}'`"
+       host="`echo $line | awk -F ':' '{print $3}'`"
+       port="`echo $line | awk -F ':' '{print $4}'`"
+       code="`echo $line | awk -F ':' '{print $5}'`"
+       time="`echo $line | awk -F ':' '{print $6}'`"
+        uri="`echo $line | awk -F ':' '{print $7}'`"
+         id="`echo $line | awk -F ':' '{print $8}'`"
+   keywords="`echo $line | awk -F ':' '{print $9}'`"
+
+
+    test -z "$host"     &&   host=0
+    test -z "$action"   && action=0
+    test -z "$port"     &&   port=80
+    test -z "$code"     &&   code=200
+    test -z "$time"     &&   time=$default_time
+    test -z "$uri"      &&    uri="/"
+
+    PrintDiscoveryList
+
+done
+
+total=`wc -l $temp | awk '{print $1}'`
+printf '{\n\t'"\"data\":["
+while read line
+do
+    if [ $count = $total ]
+    then
+        echo "$line"
+        #echo "{\"{#TOTAL.ITEMS}\": $total}"
+    else
+        echo "$line,"
+        echo $((count++)) > /dev/null
+    fi
+done < $temp
+
+printf  "\n\t]\n}\n"
+
+test -f "$temp" && rm -rf "$temp"
+

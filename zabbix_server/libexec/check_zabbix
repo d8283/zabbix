@@ -1,0 +1,40 @@
+#! /bin/bash
+
+
+serv_conf="$(dirname $(dirname $0))/etc/zabbix_server.conf"
+  db_info="`mktemp /dev/shm/XXXXXXXXXXXX`"
+
+grep '^DB[HNUP]' $serv_conf > $db_info
+
+. $db_info 
+test -f "$db_info" && rm -f $db_info
+
+slcf="select count(*) from $DBName"
+
+data(){
+    mysql -h $DBHost -u $DBUser -p$DBPassword -e "$sql" 2> /dev/null | tail -1
+    
+}
+
+case $1 in
+    hosts_total)            sql="${slcf}.hosts where ipmi_authtype=-1;"    ;;
+    hosts_enabled)          sql="${slcf}.hosts where status=0;"            ;;
+    hosts_disabled)         sql="${slcf}.hosts where status=1;"            ;;
+    hosts_templates)        sql="${slcf}.hosts where status=3;"            ;;
+
+    items_total)            sql="${slcf}.items;"                           ;;
+    #items_enabled)          sql=""
+    #items_disabled)
+    #items_not_supported)
+    #triggers_total)
+    #triggers_enabled)
+    #triggers_disabled)
+    #triggers_problem)
+    #triggers_ok)
+    users_total)            sql="${slcf}.users;"                    ;;
+    #users_online)
+    users_enabled)          sql="${slcf}.users where type=3;"       ;;
+    users_disabled)         sql="${slcf}.users where type=1;"       ;;
+esac
+
+data
